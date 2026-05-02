@@ -1,0 +1,17 @@
+package com.neeraj.upi.wallet.dto;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.math.BigDecimal;
+
+@Data
+public class AddMoneyRequest {
+
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "1.00", message = "Minimum add amount is ₹1")
+    private BigDecimal amount;
+
+    private String note; // Optional description e.g. "Top-up from HDFC"
+}

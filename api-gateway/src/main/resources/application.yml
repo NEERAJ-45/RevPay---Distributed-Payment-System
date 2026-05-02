@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: api-gateway
+
+  # ── Redis (rate limiting) ──────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret_2024}
+
+  # ── Route Definitions ─────────────────────────────
+  cloud:
+    gateway:
+      routes:
+
+        # User Service
+        - id: user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth/**, /users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+
+        # Wallet Service (public wallet routes only — /internal/** is blocked)
+        - id: wallet-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/wallet/**
+            - not Path=/wallet/internal/**    # block internal transfer from external
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+
+        # Transaction Service
+        - id: transaction-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/transactions/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+
+      # Global CORS config
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
+            allowedHeaders: "*"
+
+server:
+  port: ${GATEWAY_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET:miniupi-super-secret-jwt-key-must-be-at-least-256-bits-long-for-hs256}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    # Aggregates Swagger docs from all downstream services
+    urls:
+      - name: user-service
+        url: http://localhost:8081/api-docs
+      - name: wallet-service
+        url: http://localhost:8082/api-docs
+      - name: transaction-service
+        url: http://localhost:8083/api-docs
+
+logging:
+  level:
+    com.neeraj.upi: DEBUG
+    org.springframework.cloud.gateway: DEBUG

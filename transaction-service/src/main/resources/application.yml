@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: transaction-service
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/upi_transactions
+    username: ${POSTGRES_USER:upi_admin}
+    password: ${POSTGRES_PASSWORD:upi_secret_2024}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Redis — idempotency key store
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis_secret_2024}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+server:
+  port: ${TRANSACTION_SERVICE_PORT:8083}
+
+jwt:
+  secret: ${JWT_SECRET:miniupi-super-secret-jwt-key-must-be-at-least-256-bits-long-for-hs256}
+
+# Internal wallet-service URL (NOT going through gateway)
+wallet:
+  service:
+    url: http://localhost:8082
+
+# Idempotency key TTL in seconds (24 hours)
+idempotency:
+  ttl-seconds: 86400
+
+# Fraud / velocity rules
+fraud:
+  daily-limit: 10000.00   # max ₹ per user per calendar day
+  max-per-txn: 50000.00   # max single transaction amount
+
+# Resilience4j circuit breaker for wallet-service calls
+resilience4j:
+  circuitbreaker:
+    instances:
+      walletService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.neeraj.upi: DEBUG
