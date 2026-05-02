@@ -33,6 +33,7 @@ Here’s the complete README with a **color-coded architecture flowchart** using
 ## 🏗️ Tech Stack
 ```
 Java 21 | Spring Boot 3.3 | PostgreSQL 15 | Redis 7 | Apache Kafka | JWT (Auth0) | Swagger | Docker Compose
+**Testing Stack**: JUnit 5 | Testcontainers | REST Assured | WireMock | Awaitility
 ```
  assets/archupi.png
 ```

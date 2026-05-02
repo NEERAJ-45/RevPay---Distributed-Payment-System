@@ -36,6 +36,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <zxing.version>3.5.3</zxing.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <wiremock.version>3.5.4</wiremock.version>
     </properties>
 
     <!-- ═══════════════ Dependency Management ═══════════════ -->
@@ -104,6 +105,14 @@
                 <artifactId>mapstruct</artifactId>
                 <version>${mapstruct.version}</version>
             </dependency>
+
+            <!-- WireMock for testing -->
+            <dependency>
+                <groupId>org.wiremock</groupId>
+                <artifactId>wiremock-standalone</artifactId>
+                <version>${wiremock.version}</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -114,9 +123,41 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!-- ═══════════════ Testing Stack ═══════════════ -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
