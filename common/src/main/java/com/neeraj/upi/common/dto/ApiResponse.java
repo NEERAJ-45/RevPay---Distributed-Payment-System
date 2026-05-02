@@ -7,10 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * Standard API response envelope for all services.
+ * 
  * <pre>
  * Success: { "success": true,  "data": {...},  "error": null,  "timestamp": "..." }
  * Failure: { "success": false, "data": null,   "error": {...}, "timestamp": "..." }
