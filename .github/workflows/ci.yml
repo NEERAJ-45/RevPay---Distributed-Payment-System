@@ -10,216 +10,93 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: upi
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: maven
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
 
-    - name: Debug Runner Environment
-      run: |
-        echo "===== SYSTEM INFO ====="
-        uname -a
+      - name: Verify Required Secrets
+        run: |
+          test -n "${{ secrets.POSTGRES_USER }}" || (echo "POSTGRES_USER missing" && exit 1)
+          test -n "${{ secrets.POSTGRES_PASSWORD }}" || (echo "POSTGRES_PASSWORD missing" && exit 1)
+          test -n "${{ secrets.REDIS_PASSWORD }}" || (echo "REDIS_PASSWORD missing" && exit 1)
+          test -n "${{ secrets.JWT_SECRET }}" || (echo "JWT_SECRET missing" && exit 1)
 
-        echo ""
-        echo "===== JAVA VERSION ====="
-        java -version
+      - name: Create .env
+        run: |
+          cat <<EOF > .env
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
 
-        echo ""
-        echo "===== DOCKER VERSION ====="
-        docker --version
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
 
-        echo ""
-        echo "===== DOCKER COMPOSE VERSION ====="
-        docker compose version
+          KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 
-    - name: Create .env file
-      run: |
-        echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-        echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-        echo "POSTGRES_HOST=postgres" >> .env
-        echo "POSTGRES_PORT=5432" >> .env
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRY_MS=86400000
 
-        echo "REDIS_HOST=redis" >> .env
-        echo "REDIS_PORT=6379" >> .env
-        echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+          USER_SERVICE_PORT=8081
+          WALLET_SERVICE_PORT=8082
+          TRANSACTION_SERVICE_PORT=8083
+          NOTIFICATION_SERVICE_PORT=8084
+          GATEWAY_PORT=8080
+          EOF
 
-        echo "KAFKA_BOOTSTRAP_SERVERS=kafka:9092" >> .env
-
-        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-        echo "JWT_EXPIRY_MS=86400000" >> .env
-
-        echo "USER_SERVICE_PORT=8081" >> .env
-        echo "WALLET_SERVICE_PORT=8082" >> .env
-        echo "TRANSACTION_SERVICE_PORT=8083" >> .env
-        echo "NOTIFICATION_SERVICE_PORT=8084" >> .env
-        echo "GATEWAY_PORT=8080" >> .env
-
-    - name: Verify .env Variables
-      run: |
-        echo "===== VERIFYING .ENV ====="
-
-        if [ ! -f .env ]; then
-          echo ".env file NOT FOUND"
-          exit 1
-        fi
-
-        echo ".env file exists"
-
-        echo ""
-        echo "===== SAFE VARIABLES ====="
-        grep -E 'HOST|PORT|EXPIRY' .env || true
-
-        echo ""
-        echo "===== SECRET VARIABLES CHECK ====="
-
-        grep POSTGRES_USER .env && echo "POSTGRES_USER OK"
-        grep POSTGRES_PASSWORD .env && echo "POSTGRES_PASSWORD OK"
-        grep REDIS_PASSWORD .env && echo "REDIS_PASSWORD OK"
-        grep JWT_SECRET .env && echo "JWT_SECRET OK"
-
-    - name: Start Infrastructure Containers
-      run: |
-        echo "===== STARTING CONTAINERS ====="
-
-        docker compose up -d postgres redis kafka zookeeper
-
-        echo ""
-        echo "===== CONTAINER STATUS ====="
-        docker compose ps
-
-    - name: Debug Container Health
-      run: |
-        echo "===== RUNNING CONTAINERS ====="
-        docker ps -a
-
-        echo ""
-        echo "===== DOCKER NETWORKS ====="
-        docker network ls
-
-        echo ""
-        echo "===== DOCKER COMPOSE SERVICES ====="
-        docker compose ps
-
-    - name: Debug PostgreSQL Logs
-      run: |
-        echo "===== POSTGRES LOGS ====="
-        docker compose logs postgres || true
-
-    - name: Debug Redis Logs
-      run: |
-        echo "===== REDIS LOGS ====="
-        docker compose logs redis || true
-
-    - name: Debug Kafka Logs
-      run: |
-        echo "===== KAFKA LOGS ====="
-        docker compose logs kafka || true
-
-    - name: Wait for PostgreSQL
-      run: |
-        echo "===== WAITING FOR POSTGRES ====="
-
-        ATTEMPTS=0
-        MAX_ATTEMPTS=30
-
-        until docker compose exec -T postgres pg_isready -U ${{ secrets.POSTGRES_USER }}
-        do
-          ATTEMPTS=$((ATTEMPTS+1))
-
-          echo "Postgres not ready yet..."
-          echo "Attempt: $ATTEMPTS/$MAX_ATTEMPTS"
-
+      - name: Start Infrastructure
+        run: |
+          docker compose up -d postgres redis kafka zookeeper
           docker compose ps
 
-          if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
-            echo "Postgres failed to start"
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T postgres pg_isready -U ${{ secrets.POSTGRES_USER }}; then
+              echo "Postgres is ready"
+              exit 0
+            fi
 
-            echo ""
-            echo "===== FINAL POSTGRES LOGS ====="
-            docker compose logs postgres
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
 
-            exit 1
-          fi
+          docker compose logs postgres
+          exit 1
 
-          sleep 2
-        done
+      - name: Wait for Redis
+        run: |
+          for i in {1..20}; do
+            if docker compose exec -T redis redis-cli ping | grep PONG; then
+              echo "Redis is ready"
+              exit 0
+            fi
 
-        echo "Postgres is READY"
+            echo "Waiting for Redis..."
+            sleep 2
+          done
 
-    - name: Wait for Redis
-      run: |
-        echo "===== WAITING FOR REDIS ====="
+          docker compose logs redis
+          exit 1
 
-        ATTEMPTS=0
-        MAX_ATTEMPTS=20
+      - name: Build and Test
+        run: |
+          chmod +x mvnw
+          ./mvnw clean verify -B
 
-        until docker compose exec -T redis redis-cli ping | grep PONG
-        do
-          ATTEMPTS=$((ATTEMPTS+1))
-
-          echo "Redis not ready yet..."
-          echo "Attempt: $ATTEMPTS/$MAX_ATTEMPTS"
-
-          if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
-            echo "Redis failed to start"
-
-            echo ""
-            echo "===== FINAL REDIS LOGS ====="
-            docker compose logs redis
-
-            exit 1
-          fi
-
-          sleep 2
-        done
-
-        echo "Redis is READY"
-
-    - name: Wait for Kafka
-      run: |
-        echo "===== WAITING FOR KAFKA ====="
-
-        sleep 30
-
-        echo "Kafka startup wait complete"
-
-        echo ""
-        echo "===== FINAL KAFKA STATUS ====="
-        docker compose ps
-
-    - name: Build and Verify with Maven
-      run: |
-        echo "===== STARTING MAVEN BUILD ====="
-
-        chmod +x mvnw
-
-        ./mvnw clean verify -B
-
-    - name: Final Container Logs
-      if: always()
-      run: |
-        echo "===== FINAL POSTGRES LOGS ====="
-        docker compose logs postgres || true
-          
-        echo ""
-        echo "===== FINAL REDIS LOGS ====="
-        docker compose logs redis || true
-
-        echo ""
-        echo "===== FINAL KAFKA LOGS ====="
-        docker compose logs kafka || true
-
-    - name: Upload Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: '**/target/surefire-reports/'
-        retention-days: 7
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/target/surefire-reports/'
