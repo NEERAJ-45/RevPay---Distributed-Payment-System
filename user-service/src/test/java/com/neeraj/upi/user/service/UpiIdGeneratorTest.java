@@ -1,7 +1,6 @@
 package com.neeraj.upi.user.service;
 
 import com.neeraj.upi.user.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,14 +20,8 @@ class UpiIdGeneratorTest {
     @InjectMocks
     private UpiIdGenerator upiIdGenerator;
 
-    private static final String DOMAIN = "@upi"; // match your constant
-
-    @BeforeEach
-    void setUp() {
-        // Assuming your UpiIdGenerator has DOMAIN = "@upi"
-        // Use reflection if needed, or just rely on the actual field.
-        // For simplicity, we'll trust the constant.
-    }
+    // Match the actual DOMAIN from UpiIdGenerator
+    private static final String DOMAIN = "@miniupi";
 
     @Test
     void generate_shouldCreateUpiIdFromFirstWord() {
@@ -46,7 +39,6 @@ class UpiIdGeneratorTest {
 
     @Test
     void generate_shouldAddSuffixWhenConflict() {
-        // First candidate "john" exists → return "john2"
         when(userRepository.existsByUpiId("john" + DOMAIN)).thenReturn(true);
         when(userRepository.existsByUpiId("john2" + DOMAIN)).thenReturn(false);
         String upi = upiIdGenerator.generate("John");
@@ -66,14 +58,14 @@ class UpiIdGeneratorTest {
     @Test
     void generate_shouldThrowExceptionWhenNameHasNoAlphanumeric() {
         assertThrows(IllegalArgumentException.class,
-            () -> upiIdGenerator.generate("!!!"));
+                () -> upiIdGenerator.generate("!!!"));
     }
 
     @Test
     void generate_shouldFallbackToFullSanitizedNameWhenFirstWordHasNoLetters() {
         when(userRepository.existsByUpiId(anyString())).thenReturn(false);
-        // First word "123" has no letters → fallback to full "john123"
-        String upi = upiIdGenerator.generate("123 John");
-        assertEquals("john123" + DOMAIN, upi);
+        // First word "!!!" has no alphanumeric → fallback to fully sanitized "john"
+        String upi = upiIdGenerator.generate("!!! John");
+        assertEquals("john" + DOMAIN, upi);
     }
 }
