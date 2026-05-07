@@ -14,19 +14,30 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException ex) {
-        // TODO: same pattern as user-service
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.error("Wallet service business exception: {} - {}", ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity
+                .status(ex.getHttpStatus())
+                .body(ApiResponse.fail(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
-        // TODO: collect field errors, return 400
-        throw new UnsupportedOperationException("Not implemented yet");
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
+
+        log.error("Validation error in wallet service: {}", errorMessage);
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.fail("VALIDATION_ERROR", errorMessage));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        // TODO: log + return 500
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.error("Unhandled exception in wallet service: ", ex);
+        return ResponseEntity
+                .internalServerError()
+                .body(ApiResponse.fail("INTERNAL_ERROR", "An unexpected error occurred"));
     }
 }

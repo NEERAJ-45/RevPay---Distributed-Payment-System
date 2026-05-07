@@ -14,6 +14,17 @@
     <name>Mini UPI — Common</name>
     <description>Shared DTOs, constants, and exceptions</description>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+    </dependencies>
+
     <!-- No Spring Boot plugin — this is a library, not an executable -->
     <build>
         <plugins>

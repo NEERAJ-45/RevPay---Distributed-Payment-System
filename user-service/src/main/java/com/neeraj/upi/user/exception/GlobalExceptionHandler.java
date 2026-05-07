@@ -16,28 +16,41 @@ public class GlobalExceptionHandler {
     /** Handle business exceptions (UserAlreadyExists, UserNotFound, etc.) */
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException ex) {
-        // TODO: return ResponseEntity.status(ex.getHttpStatus()).body(ApiResponse.fail(...))
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.error("Business exception: {} - {}", ex.getErrorCode(), ex.getMessage());
+        return ResponseEntity
+                .status(ex.getHttpStatus())
+                .body(ApiResponse.fail(ex.getErrorCode(), ex.getMessage()));
     }
 
     /** Handle @Valid bean validation errors */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
-        // TODO: collect field errors, return 400 with VALIDATION_ERROR code
-        throw new UnsupportedOperationException("Not implemented yet");
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
+        
+        log.error("Validation error: {}", errorMessage);
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.fail("VALIDATION_ERROR", errorMessage));
     }
 
     /** Handle bad login credentials */
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
-        // TODO: return 401 INVALID_CREDENTIALS
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.warn("Authentication failed: {}", ex.getMessage());
+        return ResponseEntity
+                .status(401)
+                .body(ApiResponse.fail("INVALID_CREDENTIALS", "Invalid phone number or PIN"));
     }
 
     /** Catch-all for unhandled exceptions */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        // TODO: log + return 500 INTERNAL_ERROR
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.error("Unhandled exception: ", ex);
+        return ResponseEntity
+                .internalServerError()
+                .body(ApiResponse.fail("INTERNAL_ERROR", "An unexpected error occurred"));
     }
 }

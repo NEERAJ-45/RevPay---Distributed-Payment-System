@@ -23,9 +23,7 @@ public class UserCreatedListener {
         groupId = KafkaTopics.GROUP_NOTIFICATION
     )
     public void onUserCreated(UserCreatedEvent event) {
-        // TODO:
-        // 1. log.info("Received UserCreated event for upiId={}", event.getUpiId())
-        // 2. notificationService.sendWelcome(event.getUpiId(), event.getFullName(), event.getPhone())
-        throw new UnsupportedOperationException("Not implemented yet");
+        log.info("Received UserCreated event for upiId={}", event.getUpiId());
+        notificationService.sendWelcome(event.getUpiId(), event.getFullName(), event.getPhone());
     }
 }
