@@ -53,9 +53,6 @@ public class UserService {
     @Transactional(readOnly = true)
 
     public AuthResponse login(LoginRequest req) {
-
-        // TODO: find user by phone, verify BCrypt PIN, generate JWT
-
         //Find User By Phone
         User user = userRepository.findByPhone(req.getPhone()).orElseThrow(() -> new IllegalArgumentException("Invalid Pin or Phone"));
 
@@ -77,13 +74,29 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getByUserId(UUID userId) {
-        // TODO: find user by ID, map to UserProfileResponse
-        throw new UnsupportedOperationException("Not implemented yet");
+        // Done : find user by ID, map to UserProfileResponse
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return UserProfileResponse.builder().id(user.getId()).fullName(user.getFullName()).phone(user.getPhone()).email(user.getEmail()).upiId(user.getUpiId()).isActive(user.isActive()).createdAt(user.getCreatedAt()).build();
+
+
     }
 
     @Transactional(readOnly = true)
     public UserProfileResponse getByUpiId(String upiId) {
-        // TODO: find user by UPI ID, map to UserProfileResponse
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        User user = userRepository.findByUpiId(upiId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return UserProfileResponse.builder()
+        .id(user.getId())
+        .fullName(user.getFullName())
+        .phone(user.getPhone())
+        .email(user.getEmail())
+        .upiId(user.getUpiId())
+        .isActive(user.isActive())
+        .createdAt(user.getCreatedAt())
+        .build();
+
     }
 }
