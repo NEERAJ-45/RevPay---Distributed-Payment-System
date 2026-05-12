@@ -78,3 +78,18 @@ logging:
   level:
     com.neeraj.upi: DEBUG
     org.springframework.cloud.gateway: DEBUG
+
+# ── Monitoring (Actuator & Prometheus) ──────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
