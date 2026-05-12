@@ -26,28 +26,53 @@ public class UserService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
+        // Check duplicate phone number
         if (userRepository.existsByPhone(req.getPhone())) {
             throw new IllegalArgumentException("Phone number already registered");
         }
-        
+
+        // Generate unique UPI ID
         String upiId = upiIdGenerator.generate(req.getFullName());
+
+        // Hash PIN using BCrypt
         String hashedPin = passwordEncoder.encode(req.getPin());
 
+        // Build and save user entity
         User user = User.builder().fullName(req.getFullName()).phone(req.getPhone()).email(req.getEmail()).upiId(upiId).pinHash(hashedPin).isActive(true).build();
-
         User savedUser = userRepository.save(user);
+
+        // Publish user creation event for wallet onboarding
         log.info("User Registered Successfully userId={} , upiId={}", savedUser.getId(), savedUser.getUpiId());
 
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getUpiId(), savedUser.getPhone());
-        UserCreatedEvent event = UserCreatedEvent.builder().userId(savedUser.getId()).upiId(savedUser.getUpiId()).fullName(savedUser.getUpiId()).phone(savedUser.getPhone()).createdAt(savedUser.getCreatedAt());
+        UserCreatedEvent event = UserCreatedEvent.builder().userId(savedUser.getId()).upiId(savedUser.getUpiId()).fullName(savedUser.getUpiId()).phone(savedUser.getPhone()).createdAt(savedUser.getCreatedAt()).build();
         eventPublisher.publishUserCreated(event);
         return AuthResponse.of(token, savedUser.getUpiId(), savedUser.getFullName());
     }
 
     @Transactional(readOnly = true)
+
     public AuthResponse login(LoginRequest req) {
+
         // TODO: find user by phone, verify BCrypt PIN, generate JWT
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        //Find User By Phone
+        User user = userRepository.findByPhone(req.getPhone()).orElseThrow(() -> new IllegalArgumentException("Invalid Pin or Phone"));
+
+        // verify BCrypt Pin
+        boolean matches = passwordEncoder.matches(req.getPin(), user.getPinHash());
+
+        if (!matches)
+            throw new IllegalArgumentException("Invalid Pin or Phone");
+        // Check account status
+        if (!user.isActive()) throw new IllegalStateException("User Account is not active");
+
+        //Generate token
+        String token = jwtService.generateToken(user.getId(), user.getUpiId(), user.getPhone());
+        log.info("User logged in Successfully: userId={} ,upiId={}", user.getId(), user.getUpiId());
+        //Return Auth Response
+        return AuthResponse.of(token, user.getUpiId(), user.getFullName());
+
     }
 
     @Transactional(readOnly = true)
