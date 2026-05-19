@@ -181,6 +181,18 @@ services:
     networks:
       - upi-net
 
+  # ═══════════════════════════════════════
+  #  Zipkin (browser at :9411)
+  # ═══════════════════════════════════════
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: upi-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
+    networks:
+      - upi-net
+
 volumes:
   postgres_data:
   redis_data:
@@ -190,3 +202,4 @@ volumes:
 networks:
   upi-net:
     driver: bridge
+

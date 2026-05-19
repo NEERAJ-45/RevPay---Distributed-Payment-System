@@ -42,7 +42,10 @@ public class TransactionService {
      */
     @Transactional
     public PayResponse pay(PayRequest request, String senderUpiId) {
-        // TODO: follow the 6-step execution order above
+        // TODO: follow the 6-step execution order above.
+        //       Additionally:
+        //       - Wrap execution in a Micrometer Timer to record latency.
+        //       - Increment a counter for "upi.payments.count" tagged with status (SUCCESS or FAILED).
         throw new UnsupportedOperationException("Not implemented yet");
     }
 

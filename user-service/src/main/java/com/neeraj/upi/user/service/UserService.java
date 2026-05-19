@@ -46,7 +46,14 @@ public class UserService {
 
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getUpiId(), savedUser.getPhone());
         UserCreatedEvent event = UserCreatedEvent.builder().userId(savedUser.getId()).upiId(savedUser.getUpiId()).fullName(savedUser.getFullName()).phone(savedUser.getPhone()).createdAt(savedUser.getCreatedAt()).build();
+        
+        // TODO: Implement Transactional Outbox Pattern to guarantee At-Least-Once Delivery.
+        //       Instead of publishing directly to Kafka inside this transactional block:
+        //       1. Serialize the 'event' to JSON using ObjectMapper.
+        //       2. Save it as an OutboxEvent entity into the database (within this active transaction).
+        //       3. The OutboxScheduler will poll the DB, dispatch it to Kafka, and mark it as processed.
         eventPublisher.publishUserCreated(event);
+        
         return AuthResponse.of(token, savedUser.getUpiId(), savedUser.getFullName());
     }
 

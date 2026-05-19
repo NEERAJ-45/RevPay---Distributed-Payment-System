@@ -1,6 +1,4 @@
-Here’s the complete README with a **color-coded architecture flowchart** using Mermaid’s `classDef` styling. Copy and save directly as `README.md`.
-
----
+ 
 
 # 💳 Mini UPI Payment System
 

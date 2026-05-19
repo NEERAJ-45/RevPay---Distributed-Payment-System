@@ -56,6 +56,7 @@ public class WalletService {
         // 4. Find receiver wallet by toUpiId
         // 5. Credit receiver: balance += amount, save LedgerEntry(CREDIT)
         // 6. Both saves happen in same @Transactional — either both commit or both rollback
+        // 7. Record transaction metrics (e.g., wallet.transfers.count counter and wallet.transfers.amount summary)
         throw new UnsupportedOperationException("Not implemented yet");
     }
 }

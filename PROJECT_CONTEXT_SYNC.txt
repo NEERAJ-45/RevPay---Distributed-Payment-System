@@ -1,0 +1,121 @@
+💳 Mini-UPI Project Context & Sync Sheet
+=======================================
+* System Status: Under Active Development (Phase 1)
+* 1-Line Pitch: Production-grade UPI simulator: 5K TPS, zero double-spends, event-driven microservices.
+
+This document provides a comprehensive technical context of the Mini-UPI Simulator project. Share this directly with any AI agent to establish instant context alignment, architectural synchronization, and coding style consistency.
+
+-----------------------------------------
+1. High-Level Architecture & Ecosystem
+-----------------------------------------
+The project is structured as a Maven Multi-Module microservices application utilizing Java 21 and Spring Boot 3.3.x.
+
+Visual Flow Architecture:
+[Client App/Postman] ---> (HTTP) ---> [API Gateway: 8080]
+                                            |
+                                            +---> [User Service: 8081]
+                                            |       - Publishes 'user.created' to Kafka
+                                            +---> [Wallet Service: 8082]
+                                            |       - Consumes 'user.created' to init wallets
+                                            |       - Exposes Balance & Debit/Credit Ledger mechanics
+                                            +---> [Transaction Service: 8083]
+                                                    - Performs Feign balance check/updates on Wallet Service
+                                                    - Publishes 'txn.completed'/'txn.failed' to Kafka
+                                                    - Redis-based Idempotency Key mapping
+
+Asynchronous Downstream Consumers:
+[Kafka Broker] ---> [Notification Service: 8084] (Consumes 'txn.*' for simulated SMS alerts)
+
+Data & Storage Layer:
+- API Gateway rate limiting: Redis
+- Transaction Service idempotency: Redis
+- Database Engines: Independent PostgreSQL containers mapped per service domain
+
+-----------------------------------------
+2. Core Service Directory & Infrastructure Map
+-----------------------------------------
+- api-gateway (Port 8080)
+  * Cache/Key-Value: Redis (Rate Limiting)
+  * Responsibilities: Central entrypoint, reactive routes mapping, IP/User rate limiting, edge validation of JWTs.
+  
+- user-service (Port 8081)
+  * Primary DB: PostgreSQL
+  * Kafka Event: Producer of 'user.created'
+  * Responsibilities: Identity registration, BCrypt password hashing, UPI ID generation, JWT issue (JJWT), and outbox event logging.
+
+- wallet-service (Port 8082)
+  * Primary DB: PostgreSQL
+  * Kafka Event: Consumer of 'user.created'
+  * Responsibilities: Wallet onboarding, double-entry balance records (debits/credits), @Transactional update logic using Optimistic Locking.
+
+- transaction-service (Port 8083)
+  * Primary DB: PostgreSQL
+  * Cache/Key-Value: Redis (Idempotency)
+  * Kafka Event: Producer of 'txn.completed', 'txn.failed'
+  * Responsibilities: Payment orchestration, idempotency checking, daily velocity limit engines, Feign orchestration, Saga orchestration.
+
+- notification-service (Port 8084)
+  * Kafka Event: Consumer of 'txn.completed', 'txn.failed'
+  * Responsibilities: Asynchronous user notifications, simulated alerts.
+
+- common (Library)
+  * Shared classes: Custom exceptions (BaseException), global responses (ApiResponse), internal payloads.
+
+-----------------------------------------
+3. Key Technical & Safety Patterns
+-----------------------------------------
+To guarantee 5,000+ TPS and ensure zero duplicate transactions/double-debits, four main architectural rules are enforced:
+
+1. Concurrency Safety: Optimistic Locking (@Version)
+- Problem: Parallel threads debiting/crediting the same wallet balance at the exact same millisecond. Pessimistic DB locks block connections and lower TPS.
+- Solution: The Wallet entity includes a JPA @Version attribute. If a conflict occurs, the transaction failing with OptimisticLockingFailureException is safely backed-off/retried, completely avoiding double debits.
+
+2. Request Safety: Redis-backed Idempotency Keys
+- Problem: Unstable user connections cause clients to send duplicate REST retries for the same payment.
+- Solution: Every transaction requires an 'Idempotency-Key' header. The transaction-service checks Redis first: if found, the cached successful payload is returned immediately with no DB or wallet mutations. If new, it executes, logs the result, and caches it with a 24-hour TTL.
+
+3. Reliability: Transactional Outbox Pattern
+- Problem: Network drops during Kafka publish inside a transactional method might leave the DB committed but the event lost (Dual-Write Problem).
+- Solution: Events are stored inside a local DB 'outbox_events' table in the exact same transaction. A background job polls the table and publishes to Kafka, ensuring At-Least-Once Delivery.
+
+4. Distributed Transactions: Saga Pattern
+- Problem: Microservice payment chains (Transaction -> Wallet -> Ledger) can fail midway.
+- Solution: The transaction-service serves as a Saga Orchestrator tracking the payment state (PENDING, SUCCESS, FAILED) and coordinating compensation flows.
+
+-----------------------------------------
+4. Active Roadmap & Context
+-----------------------------------------
+- Phase 1: Authentication, Edge Layer & Outbox Pattern (ACTIVE FOCUS)
+  * Configure infrastructure containers (PostgreSQL, Kafka, Redis, Zookeeper).
+  * Refactor JwtService.java to use secure asymmetric key signing and modern JJWT (v0.12.x) APIs.
+  * Implement transactional outbox schema logging inside the User Service.
+  * Build API Gateway rate limit filters and route validations.
+
+- Phase 2: Wallet Service & Async Onboarding (PENDING)
+  * Consume 'user.created' events in Wallet Service to dynamically register balances.
+  
+- Phase 3: Transaction Service & Idempotency (PENDING)
+  * Complete core Saga orchestration engines, payment initiators, and daily fraud limits.
+
+-----------------------------------------
+5. Quick-Start Operational Commands
+-----------------------------------------
+- Start infrastructure containers:
+  docker-compose up -d postgres redis kafka zookeeper
+  
+- Build and run tests:
+  ./mvnw clean package
+
+- Secrets mapping:
+  Copy .env.example into .env and fill out actual values (DB_PASS, JWT_SECRET, REDIS_PASS). Spring Boot automatically maps these environment parameters.
+
+-----------------------------------------
+6. Key File Registry
+-----------------------------------------
+- Parent POM: pom.xml
+- Infrastructure: docker-compose.yml
+- Current Active File: user-service/src/main/java/com/neeraj/upi/user/service/JwtService.java
+- Execution roadmaps: PHASE_WISE_SUMMARY.md / TODO.md
+
+=========================================
+Generated on 2026-05-18 for Neeraj Surnis
